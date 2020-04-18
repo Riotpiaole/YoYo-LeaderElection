@@ -6,35 +6,40 @@ import (
 )
 
 func main() {
-	fmt.Println("Hello World")
-	graph := NewGraph(2)
-	graph.nodes[31] = NewNode(31)
-	graph.addEdge(1, []int{31})
-	graph.addEdge(2, []int{31})
 
-	graph.addEdge(31, []int{1, 2})
+	// wg.Add(1)
+	// graph := NewGraph(2)
+	graph := CreateLectureGraph()
+	// graph.nodes[31] = NewNode(31)
+	// graph.addEdge(1, []int{31})
+	// graph.addEdge(2, []int{31})
+
+	// graph.addEdge(31, []int{1, 2})
 	graph.Initalizes()
-	for k, v := range graph.dAG {
-		for _, i := range v {
-			fmt.Printf("src %v  dest %v ", k, i.id)
-		}
-		fmt.Print("\n")
-	}
-	fmt.Printf("%v\n", graph.dAG)
-	activateAllNodesHandler(graph)
-	// // graph.nodes[2].handleMessage(graph)
-	// // graph.nodes[1].handleMessage(graph)
-	time.Sleep(1 * time.Second)
-	graph.nodes[1].SinkYoDOWN(
-		YoDown,
-		graph,
-	)
-	// time.Sleep(1 * time.Second)
-	graph.nodes[2].SinkYoDOWN(
-		YoDown,
-		graph,
-	)
+	// graph.nodes[2].min = 1
 
-	time.Sleep(1 * time.Second)
-	graph.closeAllChannel()
+	// for k, v := range graph.dAG {
+	// 	for _, i := range v {
+	// 		fmt.Printf("src %v  dest %v ", k, i)
+	// 	}
+	// 	fmt.Print("\n")
+	// }
+	// fmt.Printf("OutGoing %v\n", graph.dAG)
+	// fmt.Printf("Incoming %v\n", graph.inComing)
+	activateAllNodesHandler(graph)
+	for _, sourceNode := range graph.source {
+		graph.nodes[sourceNode].SinkYoDOWN(graph)
+	}
+	// time.Sleep(1 * time.Second)
+	// graph.nodes[1].SinkYoDOWN(graph)
+	// // time.Sleep(1 * time.Second)
+	// graph.nodes[2].SinkYoDOWN(
+	// 	graph,
+	// )
+	time.Sleep(5 * time.Second)
+	fmt.Println("chekcing Final Graph")
+	fmt.Printf("Incoming %v\n", graph.inComing)
+	fmt.Printf("OutGoing %v\n", graph.dAG)
+	fmt.Printf("Remaing Source is %v\n", graph.source)
+	// graph.closeAllChannel()
 }
