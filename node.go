@@ -67,6 +67,7 @@ func (u *Node) findLocalLeader(downWardMsgs []Message) (int, int, int) {
 			min = receivedMsg.candidate
 		}
 	}
+
 	for _, downWardMsgs := range downWardMsgs {
 		if downWardMsgs.candidate == min {
 			cnt++
@@ -83,13 +84,15 @@ func (u *Node) findLocalLeader(downWardMsgs []Message) (int, int, int) {
 	}
 	if cnt > 1 {
 		if pickedIndex == -1 { // haven't found a sender is the Min
-			fmt.Printf("[%d , %s] Checking repeatedYesMessages %v and cnt %d \n", u.id, u.state, len(yesMessage), cnt)
+			fmt.Printf("[%d , %s] Checking repeatedYesMessages %v and cnt %d \n", u.id, u.state, yesMessage, cnt)
 			if len(downWardMsgs) == 0 {
 				pickedIndex = -1
 			} else {
 				pickedIndex = rand.Intn(len(yesMessage))
+				fmt.Printf("Check for index %v\n", yesMessage[pickedIndex])
+				pickedMsg := yesMessage[pickedIndex]
 				for i, msg := range downWardMsgs {
-					if compareMessage(msg, yesMessage[pickedIndex]) {
+					if compareMessage(msg, pickedMsg) {
 						pickedIndex = i
 					}
 				}
@@ -126,9 +129,7 @@ func (u *Node) updateState(g *Graph) State {
 		g.muxSRC.Lock()
 		fmt.Printf("[%d] Remove %d from source %v\n", u.id, u.id, g.source)
 		g.source = removeByVal(g.source, u.id)
-		fmt.Printf("How many time does remove source is ran\n")
 		g.muxSRC.Unlock()
-		// fmt.Printf("How many time does remove source is ran")
 		g.sourcewg.Done()
 	}
 	g.muxDAG.Unlock()
@@ -171,6 +172,7 @@ func (u *Node) handleMessage(g *Graph) {
 					case YESPRUNE:
 						// pruning unwanted repeated Link
 						u.handleUpwardMessages(msg, g)
+						// u.printNode(g, msg, v)
 						fmt.Printf("[%d, %d] stops listening \n", u.id, v)
 						break
 					}
@@ -194,8 +196,14 @@ func (u *Node) SinkYoDOWN(graph *Graph) {
 }
 
 func (u *Node) handleSinkUpward(g *Graph) {
+	// u.printNode(g, Message{CHECK, 300, 300}, 30)
+	if len(g.inComing[u.id]) == 1 {
+		fmt.Printf("[%d, %s] has become a sink with only one outGoing Edges sending YESPRUNE\n",
+			u.id, u.state)
+		u.forwardMessage(g.inComing[u.id][0], YESPRUNE, u.min, g)
+		return
+	}
 	// only handling SINK
-	u.updateState(g)
 	pickedIndex, min, _ := u.findLocalLeader(u.downWardMsgs)
 	if min < u.min {
 		u.min = min
@@ -203,36 +211,30 @@ func (u *Node) handleSinkUpward(g *Graph) {
 	fmt.Printf("[%s,%d, min:%d] checking for msg %v and index %d\n", u.state, u.id, u.min, u.downWardMsgs, pickedIndex)
 
 	for index, msg := range u.downWardMsgs {
-		if index != pickedIndex && u.min == msg.candidate {
-			// synchronization mechanics
-			u.forwardMessage(msg.sender, YESPRUNE, u.min, g)
-			u.downWardMsgs = removeMsgQueue(u.downWardMsgs, msg.sender)
-		} else if msg.candidate != u.min {
-			u.forwardMessage(msg.sender, NO, u.min, g)
-			u.downWardMsgs = removeMsgQueue(u.downWardMsgs, msg.sender)
-		}
-	}
-	fmt.Printf("Checking From SinkDown AWAIT\n")
-	u.printNode(g, Message{CHECK, 300, 300}, 30)
-	u.updateState(g)
-	if len(u.downWardMsgs) == 1 {
-		msg := u.downWardMsgs[0]
-		if u.state == SINK && len(g.inComing[u.id]) == 1 {
-			fmt.Printf("[%d, %s] has become a sink with only one outGoing Edges sending YESPRUNE\n",
-				u.id, u.state)
-			u.forwardMessage(msg.sender, YESPRUNE, u.min, g)
-			u.downWardMsgs = removeMsgQueue(u.downWardMsgs, msg.sender)
+		if msg.candidate == u.min {
+			if index == pickedIndex {
+				u.forwardMessage(msg.sender, YES, u.min, g)
+			} else {
+				u.forwardMessage(msg.sender, YESPRUNE, u.min, g)
+			}
 		} else {
-			u.forwardMessage(msg.sender, YES, u.min, g)
-			u.downWardMsgs = removeMsgQueue(u.downWardMsgs, msg.sender)
+			u.forwardMessage(msg.sender, NO, u.min, g)
 		}
+
 	}
+
+	u.updateState(g)
+
 	fmt.Printf("Checking From SinkDown AWAIT SHOULD HITS HERE\n")
 
-	u.mux.Lock()
+	u.muxInComing.Lock()
 	u.upwardMsgs = []Message{}
+	u.muxInComing.Unlock()
+
+	u.mux.Lock()
 	u.downWardMsgs = []Message{}
 	u.mux.Unlock()
+	g.GlobalUpdate()
 }
 
 func (u *Node) handleUpwardMessages(msg Message, g *Graph) {
@@ -266,75 +268,54 @@ func (u *Node) handleUpwardMessages(msg Message, g *Graph) {
 		}
 
 		u.updateState(g)
-		fmt.Printf("[%d, %s] pickedIndex %d , min %d, cnt %d\n", u.id, u.state, pickedIndex, min, cnt)
-		u.printNode(g, msg, msg.sender)
+		fmt.Printf("[%d, %s] pickedIndex %d , Upward min %d, Upward cnt %d\n", u.id, u.state, pickedIndex, min, cnt)
+		// u.printNode(g, msg, msg.sender)
 
 		switch u.state {
 		case SOURCE:
-			for _, upwardMsg := range u.upwardMsgs {
-				if upwardMsg.messagetype == YESPRUNE {
-					fmt.Printf("[%d , %s] pruning the edge according to messages %v\n", u.id, u.state, upwardMsg)
-					g.pruneEdge(u.id, []int{upwardMsg.sender})
-				}
-			}
-			// update state and flip all the no edge
-
-			for _, upwardMsg := range u.upwardMsgs {
-				if upwardMsg.messagetype == NO {
-					u.muxInComing.Lock()
-					flipEdge(g, u.id, upwardMsg.sender)
-					u.min = upwardMsg.candidate
-					u.upwardMsgs = removeMsgQueue(u.upwardMsgs, upwardMsg.sender)
-					u.muxInComing.Unlock()
-				}
-			}
-			u.updateState(g)
-			/**
-			* Recursive Loop perform additional YoDown
-			 */
 			fmt.Printf("[%d, %s, min:%d] has Received All upward incoming candiates\n", u.id, u.state, u.min)
 			fmt.Printf("[%d, %s, min:%d] upward %v downward %v\n", u.id, u.state, u.min, u.upwardMsgs, u.downWardMsgs)
 			fmt.Printf("[%d, %s, min:%d] should prun Edges? %d and index is %d min %d\n",
 				u.id, u.state, u.min, cnt, pickedIndex, min)
 			if u.state == SOURCE {
-				fmt.Printf("How many time does remove source is ran\n")
 				g.sourcewg.Done()
 			}
+
+			u.muxInComing.Lock()
+			u.upwardMsgs = []Message{}
+			u.muxInComing.Unlock()
+
+			u.mux.Lock()
+			u.downWardMsgs = []Message{}
+			u.mux.Unlock()
+
 		case INTERNAL:
-			u.pruneRepeatedCanadiateEdge(g)
+			pickedIndex, min, _ = u.findLocalLeader(u.downWardMsgs)
+			fmt.Printf("[%d, %s] pickedIndex %d , Downward min %d, Downward cnt %d\n", u.id, u.state, pickedIndex, min, cnt)
 			for index, inComingMsg := range u.downWardMsgs {
-				if inComingMsg.candidate != u.min {
-					u.forwardMessage(inComingMsg.sender, NO, u.min, g)
-				} else if inComingMsg.candidate == u.min && cnt <= 1 {
-					u.forwardMessage(inComingMsg.sender, YES, u.min, g)
-				} else if cnt > 1 && pickedIndex != -1 {
-					if inComingMsg.candidate == u.min && index != pickedIndex {
+				if inComingMsg.candidate == u.min {
+					if index == pickedIndex {
+						u.forwardMessage(inComingMsg.sender, YES, u.min, g)
+					} else {
 						u.forwardMessage(inComingMsg.sender, YESPRUNE, u.min, g)
 					}
+				} else {
+					u.forwardMessage(inComingMsg.sender, NO, u.min, g)
+
 				}
 			}
 			u.updateState(g)
+			u.muxInComing.Lock()
+			u.upwardMsgs = []Message{}
+			u.muxInComing.Unlock()
+			u.mux.Lock()
+			u.downWardMsgs = []Message{}
+			u.mux.Unlock()
 		case SINK:
-			u.pruneRepeatedCanadiateEdge(g)
-			if len(g.inComing[u.id]) == 1 {
-				u.forwardMessage(g.inComing[u.id][0], YESPRUNE, u.min, g)
-			} else {
-				for _, inComingMsg := range u.downWardMsgs {
-					if inComingMsg.candidate != u.min {
-						u.forwardMessage(inComingMsg.sender, NO, u.min, g)
-					} else {
-						u.forwardMessage(inComingMsg.sender, YES, u.min, g)
-					}
-				}
-			}
+			u.handleSinkUpward(g)
 			u.updateState(g)
 		}
-		u.muxInComing.Lock()
-		u.mux.Lock()
-		u.downWardMsgs = []Message{}
-		u.upwardMsgs = []Message{}
-		u.mux.Unlock()
-		u.muxInComing.Unlock()
+
 	}
 	g.GlobalUpdate()
 }
@@ -352,29 +333,6 @@ func (u *Node) replyMessage(sender int, types TypesOfMessage, candidate int, g *
 	fmt.Printf("[%d] replying Message %v through channel [%d , %d]\n",
 		u.id, msg, sender, u.id)
 	g.links[edge{sender, u.id}] <- msg
-}
-
-func (u *Node) pruneRepeatedCanadiateEdge(g *Graph) {
-	// double check
-	//================================================================
-	// handling reply when the node is still an internal Node
-	//================================================================
-
-	pickedIndex, min, cnt := u.findLocalLeader(u.downWardMsgs)
-	u.min = min
-
-	/**
-	* Random select a edge from a edge sent the same weight
-	* For all edge prune the unNeeded Channel
-	 */
-	if cnt > 1 {
-		for index, msg := range u.downWardMsgs {
-			if index != pickedIndex && msg.candidate == u.min {
-				u.forwardMessage(msg.sender, YESPRUNE, u.min, g)
-				u.downWardMsgs = removeMsgQueue(u.downWardMsgs, msg.sender)
-			}
-		}
-	}
 }
 
 func (u *Node) handleYoDownMsg(msg Message, g *Graph) {
@@ -418,12 +376,14 @@ func (u *Node) handleYoDownMsg(msg Message, g *Graph) {
 			fmt.Printf("[%d, %s] handling YODOWN message\n", u.id, u.state)
 			fmt.Printf("[%d, %s]\treceived \n\tUpwardMsg: %v\n\tDownWardMsg: %v \n", u.id, u.state, u.upwardMsgs, u.downWardMsgs)
 			u.handleSinkUpward(g)
-			u.mux.Lock()
+
 			u.muxInComing.Lock()
-			u.downWardMsgs = []Message{}
 			u.upwardMsgs = []Message{}
-			u.mux.Unlock()
 			u.muxInComing.Unlock()
+
+			u.mux.Lock()
+			u.downWardMsgs = []Message{}
+			u.mux.Unlock()
 		}
 
 	}

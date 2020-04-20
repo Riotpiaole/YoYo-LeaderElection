@@ -29,6 +29,11 @@ func TestFindLocalLeader(t *testing.T) {
 	assert.Equal(t, cnt, 2)
 }
 
+func TestFindLocalLeaderEnhance(t *testing.T) {
+	// msg := []Message{Message{YoDown, 3, 3}, Message{YoDown, 4, 4}}
+	// node1, node2 := NewNode(3), NewNode(4)
+}
+
 func TestLecureExample(t *testing.T) {
 	// when sink received all of its messages is about to forward upward
 	graph := CreateTestGraph()
@@ -51,4 +56,22 @@ func TestLecureFullYOYOExample(t *testing.T) {
 	assert.Equal(
 		t, LEADER, graph.nodes[2].state,
 	)
+}
+
+func TestHyperCube(t *testing.T) {
+	g := HyperCube(6)
+	g.Initalizes()
+	g.PrintGraph(1, 2)
+	activateAllNodesHandler(g)
+
+	g.YoDown()
+	// for _, node := range g.source {
+	// 	g.nodes[node].SinkYoDOWN(g)
+	// }
+	// time.Sleep(1 * time.Second)
+	// for _, node := range g.source {
+	// 	g.nodes[node].SinkYoDOWN(g)
+	// }
+	// time.Sleep(1 * time.Second)
+	// g.PrintGraph(1, 2)
 }

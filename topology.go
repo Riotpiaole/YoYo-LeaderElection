@@ -39,7 +39,7 @@ func (g *Graph) addEdge(id int, links []int) {
 		g.edges[id] = append(g.edges[id], link)
 		g.links[edge{id, link}] = make(chan Message, len(links))
 		g.links[edge{link, id}] = make(chan Message, len(links))
-		fmt.Printf("%v is expecting size %d chan\n", edge{id, link}, len(links))
+		// fmt.Printf("%v is expecting size %d chan\n", edge{id, link}, len(links))
 	}
 }
 
@@ -190,8 +190,9 @@ func (g *Graph) pruneEdge(u int, edges []int) {
 	if len(edges) == 0 {
 		return
 	}
-	fmt.Printf("[%d] is pruning all outgoing in %d and incoming of %v\n", u, u, edges)
-	fmt.Printf("[%d] is checking Grpah \n\toutGoing: %v \n\tinComing: %v\n", u, g.dAG, g.inComing)
+	fmt.Printf("[%d] is pruning edges %v\n", u, edges)
+	// fmt.Printf("[%d] is pruning all outgoing in %d and incoming of %v\n", u, u, edges)
+	// fmt.Printf("[%d] is checking Grpah \n\toutGoing: %v \n\tinComing: %v\n", u, g.dAG, g.inComing)
 	g.muxDAG.Lock()
 	for _, edge := range edges {
 		g.inComing[edge] = removeEdge(g.inComing[edge], u)
@@ -200,8 +201,8 @@ func (g *Graph) pruneEdge(u int, edges []int) {
 		g.dAG[edge] = removeEdge(g.dAG[edge], u)
 	}
 	g.muxDAG.Unlock()
-	fmt.Printf("After PRUNE Edge")
-	fmt.Printf("\n[%d] is checking Grpah \n\toutGoing: %v \n\tinComing: %v\n\n", u, g.dAG, g.inComing)
+	// fmt.Printf("After PRUNE Edge")
+	// fmt.Printf("\n[%d] is checking Grpah \n\toutGoing: %v \n\tinComing: %v\n\n", u, g.dAG, g.inComing)
 }
 
 func (g *Graph) PrintGraph(u int, v int) {
@@ -332,7 +333,7 @@ func HyperCube(ndim int) (g *Graph) {
 
 	fisherShuffle(nodesHori)
 
-	fmt.Printf("%v\n", nodesHori)
+	// fmt.Printf("%v\n", nodesHori)
 	for i, horiz := range hypercubeMatrix {
 		edges := []int{}
 		for j, val := range horiz {
@@ -343,4 +344,18 @@ func HyperCube(ndim int) (g *Graph) {
 		graph.addEdge(nodesHori[i], edges)
 	}
 	return graph
+}
+
+func CreateCompleteTopology(N int) *Graph {
+	g := NewGraph(N)
+	seqNode := NewSlice(1, N, 1)
+	fisherShuffle(seqNode)
+	for _, node := range g.nodes {
+		copyEdge := make([]int, N)
+		copy(copyEdge, seqNode)
+		copyEdge = removeByVal(copyEdge, node.id)
+		g.addEdge(node.id, copyEdge)
+	}
+
+	return g
 }
