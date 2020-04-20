@@ -1,7 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"log"
+	"math"
+	"math/rand"
+	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -30,9 +37,9 @@ type Graph struct {
 func (g *Graph) addEdge(id int, links []int) {
 	for _, link := range links {
 		g.edges[id] = append(g.edges[id], link)
-		// fmt.Printf("%v is expecting size %d chan\n", edge{id, link}, len(links))
 		g.links[edge{id, link}] = make(chan Message, len(links))
 		g.links[edge{link, id}] = make(chan Message, len(links))
+		fmt.Printf("%v is expecting size %d chan\n", edge{id, link}, len(links))
 	}
 }
 
@@ -168,12 +175,6 @@ func activateAllNodesHandler(g *Graph) {
 	}
 }
 
-func (g *Graph) closeAllChannel() {
-	for _, v := range g.links {
-		close(v)
-	}
-}
-
 func (g *Graph) pruneNode(u int) {
 	// removed current Node u
 	fmt.Printf("Pruning anything related to %d", u)
@@ -203,16 +204,6 @@ func (g *Graph) pruneEdge(u int, edges []int) {
 	fmt.Printf("\n[%d] is checking Grpah \n\toutGoing: %v \n\tinComing: %v\n\n", u, g.dAG, g.inComing)
 }
 
-func YoYo(g *Graph) {
-	fmt.Printf("")
-	activateAllNodesHandler(g)
-	time.Sleep(1 * time.Second)
-	for _, sourceNode := range g.source {
-		go g.nodes[sourceNode].SinkYoDOWN(g)
-	}
-	g.closeAllChannel()
-}
-
 func (g *Graph) PrintGraph(u int, v int) {
 	fmt.Println("\n\n========================================================================================")
 	fmt.Printf("[%d , %d] is checking Grpah \n\toutGoing: %v \n\tinComing: %v\n", u, v, g.dAG, g.inComing)
@@ -237,7 +228,119 @@ func (g *Graph) YoDown() {
 			g.nodes[sourceNode].SinkYoDOWN(g)
 			g.sourcewg.Add(1)
 		}
-		// fmt.Printf("Check nusm  %d", cnt)
 		g.sourcewg.Wait()
 	}
+}
+
+func NewSlice(start, end, step int) []int {
+	if step <= 0 || end < start {
+		return []int{}
+	}
+	s := make([]int, 0, 1+(end-start)/step)
+	for start <= end {
+		s = append(s, start)
+		start += step
+	}
+	return s
+}
+
+func (g *Graph) CreateRingTopology() {
+
+}
+
+func CreateHyperCubTopology(dimension int) {
+	numsNode, numsEdge := int(math.Pow(2., float64(dimension))), int((math.Pow(2., float64(dimension-1)))*float64(dimension))
+	graph := NewGraph(numsNode)
+	newSlice := NewSlice(1, numsNode, 1)
+	// linksMap := make(map[int]Edge)
+	fmt.Printf("edge %d and slice %v\n%v\n", numsEdge, newSlice, graph.nodes)
+	for numsEdge > 0 {
+		i := rand.Intn(len(newSlice))
+		node := newSlice[i]
+		newSlice = removeInt(newSlice, i)
+		graph.addEdge(node, []int{})
+		numsEdge--
+	}
+
+}
+
+func CreateHyperCubeMatrix(ndim int) [][]int {
+	input := strconv.Itoa(ndim)
+	c := exec.Command("python3", "-u", "hypercube.py", input)
+	si, err := c.StdinPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	so, err := c.StdoutPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	reader := bufio.NewReader(so)
+
+	err = c.Start()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	answer, err := reader.ReadString('\n')
+	answer = strings.TrimSpace(answer)
+	// Now do some maths
+	if err != nil {
+		fmt.Println(err)
+	}
+	answer1 := strings.SplitAfter(answer, "],")
+	d := int(math.Pow(2., float64(ndim)))
+	result := make([][]int, d)
+	for i, dim := range answer1 {
+		result[i] = make([]int, d)
+		splitVal := strings.Split(dim[:len(dim)-2], ",")
+
+		for j, val := range splitVal {
+			val = strings.Replace(val, "[", "", -1)
+			val = strings.TrimSpace(val)
+			if val == "0" {
+				result[i][j] = 0
+			} else if val == "1" {
+				result[i][j] = 1
+			}
+
+		}
+	}
+	// Close the input and wait for exit
+	si.Close()
+	so.Close()
+	c.Wait()
+	return result
+}
+
+func fisherShuffle(a []int) {
+	rand.Seed(time.Now().UnixNano())
+	for i := len(a) - 1; i > 0; i-- { // Fisher–Yates shuffle
+		j := rand.Intn(i + 1)
+		a[i], a[j] = a[j], a[i]
+	}
+}
+
+func HyperCube(ndim int) (g *Graph) {
+	N := int(math.Pow(2., float64(ndim)))
+	// dimensions := int(math.Pow(2., float64(ndim-1)))
+	hypercubeMatrix := CreateHyperCubeMatrix(ndim)
+	fmt.Printf("%v\n", hypercubeMatrix)
+	graph := NewGraph(N)
+	nodesHori := NewSlice(1, N, 1)
+
+	fisherShuffle(nodesHori)
+
+	fmt.Printf("%v\n", nodesHori)
+	for i, horiz := range hypercubeMatrix {
+		edges := []int{}
+		for j, val := range horiz {
+			if val == 1 {
+				edges = append(edges, nodesHori[j])
+			}
+		}
+		graph.addEdge(nodesHori[i], edges)
+	}
+	return graph
 }

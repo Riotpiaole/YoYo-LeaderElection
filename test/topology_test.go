@@ -34,35 +34,6 @@ func TestInitalizes(t *testing.T) {
 	assert.Equal(t, len(graph.inComing[4]), 3)
 }
 
-// func TestChannelCheck(t *testing.T) {
-// 	graph := NewGraph(2)
-// 	graph.addEdge(1, []int{2})
-// 	graph.addEdge(2, []int{1})
-// 	graph.Initalizes()
-// 	// fmt.Printf("%v \n", graph.dAG[1][0])
-// 	// fmt.Printf("%v\n", graph.links[edge{1, 2}])
-
-// 	go graph.nodes[2].receiveMessage(graph)
-// 	graph.nodes[1].sendMessage(
-// 		YoDown,
-// 		graph,
-// 	)
-// }
-
-func TestEdgeFLip(t *testing.T) {
-	graph := CreateTestGraph()
-	graph.Initalizes()
-
-	// assert.Equal(t, len(graph.inComing[1]), 0)
-
-	// flipEdge(graph, 1, 2)
-
-	// // 2 -> 1
-	// assert.Equal(t, len(graph.inComing[1]), 1)
-	// assert.Equal(t, graph.inComing[1][0], 2)
-	// incoming of 1 should be 2
-}
-
 func TestPruneNode(t *testing.T) {
 	graph := NewGraph(2)
 
@@ -93,7 +64,6 @@ func TesthandlePruneSinkNode(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	fmt.Printf("OutGoing %v\n", graph.dAG)
 	fmt.Printf("Incoming %v\n", graph.inComing)
-	graph.closeAllChannel()
 	assert.Equal(t, 0, -1)
 	assert.Equal(t, graph.dAG[1][0], 31)
 	assert.Equal(t, len(graph.dAG[2]), 0)
@@ -120,9 +90,6 @@ func TesthandlePruneEdge(t *testing.T) {
 	graph.nodes[2].SinkYoDOWN(graph)
 
 	time.Sleep(1 * time.Second)
-	fmt.Printf("OutGoing %v\n", graph.dAG)
-	fmt.Printf("Incoming %v\n", graph.inComing)
-	graph.closeAllChannel()
 	assert.Equal(t, graph.dAG[1][0], 31)
 	assert.Equal(t, len(graph.dAG[2]), 0)
 	assert.Equal(t, graph.inComing[31][0], 1)
@@ -144,4 +111,12 @@ func TestFlipEdge(t *testing.T) {
 	graph.PrintGraph(14, 4)
 	flipEdge(graph, 5, 11)
 	graph.PrintGraph(14, 4)
+}
+
+func TestCreateHyperCube(t *testing.T) {
+	CreateHyperCubTopology(2)
+}
+
+func TestIdentity(t *testing.T) {
+	CreateHyperCubeMatrix(3)
 }

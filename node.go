@@ -251,7 +251,7 @@ func (u *Node) handleUpwardMessages(msg Message, g *Graph) {
 		for _, msg := range u.upwardMsgs {
 			if msg.messagetype == YESPRUNE {
 				g.pruneEdge(u.id, []int{msg.sender})
-				u.upwardMsgs = removeMsgQueue(u.upwardMsgs, msg.sender)
+				cnt--
 			} else if msg.messagetype == NO {
 				flipEdge(g, u.id, msg.sender)
 			}
@@ -259,7 +259,8 @@ func (u *Node) handleUpwardMessages(msg Message, g *Graph) {
 		if u.leaderChecking(g) {
 			g.source = removeByVal(g.source, u.id)
 			g.sourcewg.Done()
-			fmt.Printf("[%d] has elected as Leader\n\n", u.id)
+			u.state = LEADER
+			fmt.Printf("[%d, %s] has elected as Leader\n\n", u.id, u.state)
 			fmt.Printf("How many time does remove source is ran\n")
 			return
 		}
@@ -274,9 +275,6 @@ func (u *Node) handleUpwardMessages(msg Message, g *Graph) {
 				if upwardMsg.messagetype == YESPRUNE {
 					fmt.Printf("[%d , %s] pruning the edge according to messages %v\n", u.id, u.state, upwardMsg)
 					g.pruneEdge(u.id, []int{upwardMsg.sender})
-					u.muxInComing.Lock()
-					u.upwardMsgs = removeMsgQueue(u.upwardMsgs, upwardMsg.sender)
-					u.muxInComing.Unlock()
 				}
 			}
 			// update state and flip all the no edge
