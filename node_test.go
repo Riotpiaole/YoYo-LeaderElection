@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -50,28 +51,54 @@ func TestLecureExample(t *testing.T) {
 func TestLecureFullYOYOExample(t *testing.T) {
 	graph := CreateLectureGraph()
 	graph.Initalizes()
-
 	activateAllNodesHandler(graph)
 	graph.YoDown()
 	assert.Equal(
 		t, LEADER, graph.nodes[2].state,
 	)
+	// fmt.Println(graph.stats.visualizesResult("LectureExample", "Random", ","))
+	graph.stats.exportCSV("LectureFullYoyo", "Rand", "./lectureExample.csv")
 }
 
 func TestHyperCube(t *testing.T) {
-	g := HyperCube(6)
+	g := HyperCube(7)
 	g.Initalizes()
 	g.PrintGraph(1, 2)
 	activateAllNodesHandler(g)
 
 	g.YoDown()
-	// for _, node := range g.source {
-	// 	g.nodes[node].SinkYoDOWN(g)
-	// }
-	// time.Sleep(1 * time.Second)
-	// for _, node := range g.source {
-	// 	g.nodes[node].SinkYoDOWN(g)
-	// }
-	// time.Sleep(1 * time.Second)
-	// g.PrintGraph(1, 2)
+	assert.Equal(
+		t, LEADER, g.nodes[1].state,
+	)
+}
+
+func TestCompleteGraph(t *testing.T) {
+	g := CreateCompleteTopology(10)
+	fmt.Printf("edges %v\n", g.edges)
+	g.Initalizes()
+	g.PrintGraph(1, 2)
+	activateAllNodesHandler(g)
+
+	g.YoDown()
+	assert.Equal(
+		t, LEADER, g.nodes[1].state,
+	)
+}
+
+func TestRingTopology(t *testing.T) {
+	g := CreateRingTopology(5)
+	fmt.Printf("Edge %v, Nodes %v \n", g.edges, g.nodes)
+	g.Initalizes()
+	g.PrintGraph(1, 2)
+	activateAllNodesHandler(g)
+	g.YoDown()
+}
+
+func TestCircularLadder(t *testing.T) {
+	g := CreateLatterTopology(5)
+	fmt.Printf("Edge %v, Nodes %v \n", g.edges, g.nodes)
+	g.Initalizes()
+	g.PrintGraph(1, 2)
+	activateAllNodesHandler(g)
+	g.YoDown()
 }

@@ -33,12 +33,12 @@ type Node struct {
 func (u *Node) printNode(g *Graph, msg Message, chanDest int) {
 	u.mux.Lock()
 	u.muxInComing.Lock()
-	fmt.Println()
-	fmt.Printf("[%d, %s, min %d] Received %s message [ %v ], through chan [%d, %d]\n", u.id, u.state, u.min, msg.messagetype, msg, u.id, chanDest)
-	fmt.Printf("[%d, %s] \treceived UpwardMsg: %v\tDownWardMsg: %v\n", u.id, u.state, u.upwardMsgs, u.downWardMsgs)
-	fmt.Printf("[%d, %s] \tStateCheck OutGoing: %v\tIncoming: %v\n", u.id, u.state, g.dAG[u.id], g.inComing[u.id])
-	fmt.Println()
-	fmt.Println()
+	// fmt.Println()
+	// fmt.Printf("[%d, %s, min %d] Received %s message [ %v ], through chan [%d, %d]\n", u.id, u.state, u.min, msg.messagetype, msg, u.id, chanDest)
+	// fmt.Printf("[%d, %s] \treceived UpwardMsg: %v\tDownWardMsg: %v\n", u.id, u.state, u.upwardMsgs, u.downWardMsgs)
+	// fmt.Printf("[%d, %s] \tStateCheck OutGoing: %v\tIncoming: %v\n", u.id, u.state, g.dAG[u.id], g.inComing[u.id])
+	// fmt.Println()
+	// fmt.Println()
 	u.mux.Unlock()
 	u.muxInComing.Unlock()
 }
@@ -225,8 +225,6 @@ func (u *Node) handleSinkUpward(g *Graph) {
 
 	u.updateState(g)
 
-	fmt.Printf("Checking From SinkDown AWAIT SHOULD HITS HERE\n")
-
 	u.muxInComing.Lock()
 	u.upwardMsgs = []Message{}
 	u.muxInComing.Unlock()
@@ -322,16 +320,17 @@ func (u *Node) handleUpwardMessages(msg Message, g *Graph) {
 
 func (u *Node) forwardMessage(sender int, types TypesOfMessage, candidate int, g *Graph) {
 	msg := Message{types, candidate, u.id}
-	fmt.Printf("[%d] sending Message %v through channel [%d , %d]\n",
-		u.id, msg, u.id, sender)
+	g.stats.addMessage(msg)
+	// fmt.Printf("[%d] sending Message %v through channel [%d , %d]\n",
+	// 	u.id, msg, u.id, sender)
 	// sending from u to sender with given message type
 	g.links[edge{u.id, sender}] <- msg
 }
 
 func (u *Node) replyMessage(sender int, types TypesOfMessage, candidate int, g *Graph) {
 	msg := Message{types, candidate, u.id}
-	fmt.Printf("[%d] replying Message %v through channel [%d , %d]\n",
-		u.id, msg, sender, u.id)
+	// fmt.Printf("[%d] replying Message %v through channel [%d , %d]\n",
+	// 	u.id, msg, sender, u.id)
 	g.links[edge{sender, u.id}] <- msg
 }
 
@@ -373,8 +372,8 @@ func (u *Node) handleYoDownMsg(msg Message, g *Graph) {
 		case SINK:
 			// what if different one
 			// when i received multiple same candidate
-			fmt.Printf("[%d, %s] handling YODOWN message\n", u.id, u.state)
-			fmt.Printf("[%d, %s]\treceived \n\tUpwardMsg: %v\n\tDownWardMsg: %v \n", u.id, u.state, u.upwardMsgs, u.downWardMsgs)
+			// fmt.Printf("[%d, %s] handling YODOWN message\n", u.id, u.state)
+			// fmt.Printf("[%d, %s]\treceived \n\tUpwardMsg: %v\n\tDownWardMsg: %v \n", u.id, u.state, u.upwardMsgs, u.downWardMsgs)
 			u.handleSinkUpward(g)
 
 			u.muxInComing.Lock()

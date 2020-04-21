@@ -23,15 +23,17 @@ type Graph struct {
 
 	links map[edge]Link
 
-	edges    map[int]Edge
-	dAG      map[int]Edge
-	inComing map[int]Edge
-	muxDAG   sync.Mutex
+	edges     map[int]Edge
+	dAG       map[int]Edge
+	inComing  map[int]Edge
+	numsEdges int
+	muxDAG    sync.Mutex
 
 	source []int
 	muxSRC sync.Mutex
 
 	sourcewg sync.WaitGroup
+	stats    *Statisics
 }
 
 func (g *Graph) addEdge(id int, links []int) {
@@ -41,12 +43,15 @@ func (g *Graph) addEdge(id int, links []int) {
 		g.links[edge{link, id}] = make(chan Message, len(links))
 		// fmt.Printf("%v is expecting size %d chan\n", edge{id, link}, len(links))
 	}
+	g.numsEdges += len(links)
+	g.stats.parseGraphProperties(g)
 }
 
 func NewGraph(N int) *Graph {
 	graph := new(Graph)
-
+	graph.stats = NewStatistiscs(graph)
 	graph.nodes = make(map[int]*Node)
+	graph.numsEdges = 0
 
 	graph.edges = make(map[int]Edge)
 	graph.dAG = make(map[int]Edge)
@@ -87,7 +92,8 @@ func CreateTestGraph() *Graph {
 
 func DefaultNodesGraph(nodes []int) *Graph {
 	graph := new(Graph)
-
+	graph.numsEdges = 0
+	graph.stats = NewStatistiscs(graph)
 	graph.nodes = make(map[int]*Node)
 
 	graph.edges = make(map[int]Edge)
@@ -223,14 +229,21 @@ func (g *Graph) GlobalUpdate() {
 }
 
 func (g *Graph) YoDown() {
-
+	var startT, allStart time.Time
+	allStart = time.Now()
 	for len(g.source) != 0 {
+		startT = time.Now()
 		for _, sourceNode := range g.source {
 			g.nodes[sourceNode].SinkYoDOWN(g)
 			g.sourcewg.Add(1)
 		}
 		g.sourcewg.Wait()
+		g.stats.logTimeTaken(time.Since(startT))
+		if len(g.source) != 0 {
+			g.stats.increment()
+		}
 	}
+	g.stats.totalDuration = time.Since(allStart)
 }
 
 func NewSlice(start, end, step int) []int {
@@ -245,16 +258,12 @@ func NewSlice(start, end, step int) []int {
 	return s
 }
 
-func (g *Graph) CreateRingTopology() {
-
-}
-
 func CreateHyperCubTopology(dimension int) {
 	numsNode, numsEdge := int(math.Pow(2., float64(dimension))), int((math.Pow(2., float64(dimension-1)))*float64(dimension))
 	graph := NewGraph(numsNode)
 	newSlice := NewSlice(1, numsNode, 1)
 	// linksMap := make(map[int]Edge)
-	fmt.Printf("edge %d and slice %v\n%v\n", numsEdge, newSlice, graph.nodes)
+	// fmt.Printf("edge %d and slice %v\n%v\n", numsEdge, newSlice, graph.nodes)
 	for numsEdge > 0 {
 		i := rand.Intn(len(newSlice))
 		node := newSlice[i]
@@ -327,7 +336,6 @@ func HyperCube(ndim int) (g *Graph) {
 	N := int(math.Pow(2., float64(ndim)))
 	// dimensions := int(math.Pow(2., float64(ndim-1)))
 	hypercubeMatrix := CreateHyperCubeMatrix(ndim)
-	fmt.Printf("%v\n", hypercubeMatrix)
 	graph := NewGraph(N)
 	nodesHori := NewSlice(1, N, 1)
 
@@ -356,6 +364,91 @@ func CreateCompleteTopology(N int) *Graph {
 		copyEdge = removeByVal(copyEdge, node.id)
 		g.addEdge(node.id, copyEdge)
 	}
-
 	return g
+}
+
+func CreateRingTopology(N int) *Graph {
+	graph := NewGraph(N)
+	matrix := forkPythonTopology("./ring.py", "ring", N)
+	fmt.Printf("Matrix %v\n", matrix)
+	nodesHori := NewSlice(1, N, 1)
+	for i, horiz := range matrix {
+		edges := []int{}
+		for j, val := range horiz {
+			if val == 1 {
+				edges = append(edges, nodesHori[j])
+			}
+		}
+		graph.addEdge(nodesHori[i], edges)
+	}
+	return graph
+}
+
+func CreateLatterTopology(N int) *Graph {
+	graph := NewGraph(2 * N)
+	matrix := forkPythonTopology("./ring.py", "circularladder", N)
+	fmt.Printf("Matrix %v\n", matrix)
+	nodesHori := NewSlice(1, 2*N, 1)
+	for i, horiz := range matrix {
+		edges := []int{}
+		for j, val := range horiz {
+			if val == 1 {
+				edges = append(edges, nodesHori[j])
+			}
+		}
+		graph.addEdge(nodesHori[i], edges)
+	}
+	return graph
+}
+
+func forkPythonTopology(filename string, graphType string, ndim int) [][]int {
+	input := strconv.Itoa(ndim)
+	c := exec.Command("python3", "-u", filename, graphType, input)
+	si, err := c.StdinPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	so, err := c.StdoutPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	reader := bufio.NewReader(so)
+
+	err = c.Start()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	answer, err := reader.ReadString('\n')
+	answer = strings.TrimSpace(answer)
+	// Now do some maths
+	if err != nil {
+		fmt.Println(err)
+	}
+	if graphType == "circularladder" {
+		ndim = 2 * ndim
+	}
+	answer1 := strings.SplitAfter(answer, "],")
+	result := make([][]int, ndim)
+	for i, dim := range answer1 {
+		result[i] = make([]int, ndim)
+		splitVal := strings.Split(dim[:len(dim)-2], ",")
+
+		for j, val := range splitVal {
+			val = strings.Replace(val, "[", "", -1)
+			val = strings.TrimSpace(val)
+			if val == "0" {
+				result[i][j] = 0
+			} else if val == "1" {
+				result[i][j] = 1
+			}
+
+		}
+	}
+	// Close the input and wait for exit
+	si.Close()
+	so.Close()
+	c.Wait()
+	return result
 }

@@ -4,10 +4,8 @@ type TypesOfMessage string
 
 const (
 	YoDown TypesOfMessage = "DOWN"
-	YoUp   TypesOfMessage = "UP"
 	CHECK  TypesOfMessage = "CHECK"
 
-	PRUNE    TypesOfMessage = "PRUNE"
 	YES      TypesOfMessage = "YES"
 	YESPRUNE TypesOfMessage = "YESPRUNE"
 	NO       TypesOfMessage = "NO"
