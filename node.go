@@ -191,7 +191,7 @@ func (u *Node) SinkYoDOWN(graph *Graph) {
 	}
 	for _, v := range graph.dAG[u.id] {
 		fmt.Printf("Sending from  [%d] to %d %v\n", u.id, v, time.Now())
-		graph.links[edge{u.id, v}] <- Message{YoDown, u.min, u.id}
+		u.forwardMessage(v, YoDown, u.min, graph)
 	}
 }
 

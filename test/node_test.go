@@ -57,7 +57,8 @@ func TestLecureFullYOYOExample(t *testing.T) {
 		t, LEADER, graph.nodes[2].state,
 	)
 	// fmt.Println(graph.stats.visualizesResult("LectureExample", "Random", ","))
-	graph.stats.exportCSV("LectureFullYoyo", "Rand", "./lectureExample.csv")
+	// graph.stats.exportCSV("LectureFullYoyo", "Rand", "./lectureExample.csv")
+	fmt.Printf(graph.stats.visualizesResult("lectureYoyo", "lectureYoyo", "\t", ""))
 }
 
 func TestHyperCube(t *testing.T) {
@@ -95,7 +96,7 @@ func TestRingTopology(t *testing.T) {
 }
 
 func TestCircularLadder(t *testing.T) {
-	g := CreateLatterTopology(5)
+	g := CreateLatterTopology(16)
 	fmt.Printf("Edge %v, Nodes %v \n", g.edges, g.nodes)
 	g.Initalizes()
 	g.PrintGraph(1, 2)

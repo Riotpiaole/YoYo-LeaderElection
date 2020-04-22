@@ -258,22 +258,6 @@ func NewSlice(start, end, step int) []int {
 	return s
 }
 
-func CreateHyperCubTopology(dimension int) {
-	numsNode, numsEdge := int(math.Pow(2., float64(dimension))), int((math.Pow(2., float64(dimension-1)))*float64(dimension))
-	graph := NewGraph(numsNode)
-	newSlice := NewSlice(1, numsNode, 1)
-	// linksMap := make(map[int]Edge)
-	// fmt.Printf("edge %d and slice %v\n%v\n", numsEdge, newSlice, graph.nodes)
-	for numsEdge > 0 {
-		i := rand.Intn(len(newSlice))
-		node := newSlice[i]
-		newSlice = removeInt(newSlice, i)
-		graph.addEdge(node, []int{})
-		numsEdge--
-	}
-
-}
-
 func CreateHyperCubeMatrix(ndim int) [][]int {
 	input := strconv.Itoa(ndim)
 	c := exec.Command("python3", "-u", "hypercube.py", input)
@@ -372,6 +356,7 @@ func CreateRingTopology(N int) *Graph {
 	matrix := forkPythonTopology("./ring.py", "ring", N)
 	fmt.Printf("Matrix %v\n", matrix)
 	nodesHori := NewSlice(1, N, 1)
+	fisherShuffle(nodesHori)
 	for i, horiz := range matrix {
 		edges := []int{}
 		for j, val := range horiz {
@@ -389,6 +374,7 @@ func CreateLatterTopology(N int) *Graph {
 	matrix := forkPythonTopology("./ring.py", "circularladder", N)
 	fmt.Printf("Matrix %v\n", matrix)
 	nodesHori := NewSlice(1, 2*N, 1)
+	fisherShuffle(nodesHori)
 	for i, horiz := range matrix {
 		edges := []int{}
 		for j, val := range horiz {
@@ -399,6 +385,29 @@ func CreateLatterTopology(N int) *Graph {
 		graph.addEdge(nodesHori[i], edges)
 	}
 	return graph
+}
+
+func CreateHyperCubTopology(dimension int) *Graph {
+	N := int(math.Pow(2., float64(dimension)))
+	// dimensions := int(math.Pow(2., float64(ndim-1)))
+	hypercubeMatrix := CreateHyperCubeMatrix(dimension)
+	graph := NewGraph(N)
+	nodesHori := NewSlice(1, N, 1)
+
+	fisherShuffle(nodesHori)
+
+	// fmt.Printf("%v\n", nodesHori)
+	for i, horiz := range hypercubeMatrix {
+		edges := []int{}
+		for j, val := range horiz {
+			if val == 1 {
+				edges = append(edges, nodesHori[j])
+			}
+		}
+		graph.addEdge(nodesHori[i], edges)
+	}
+	return graph
+
 }
 
 func forkPythonTopology(filename string, graphType string, ndim int) [][]int {
@@ -451,4 +460,47 @@ func forkPythonTopology(filename string, graphType string, ndim int) [][]int {
 	so.Close()
 	c.Wait()
 	return result
+}
+
+func oneTask(title string) {
+	type createTopology func(int) *Graph
+	ndims := []int{2, 4, 6, 8, 10, 12, 24, 48}
+	var createGraphFunc createTopology
+	switch title {
+	case "ring":
+		createGraphFunc = CreateRingTopology
+	case "hypercube":
+		createGraphFunc = CreateHyperCubTopology
+	case "circularladdar":
+		createGraphFunc = CreateLatterTopology
+	case "complete":
+		createGraphFunc = CreateCompleteTopology
+	}
+
+	for _, dim := range ndims {
+		if title == "hypercube" {
+			dim = dim / 2
+			if dim == 12 {
+				dim = 7
+			} else if dim == 24 {
+				dim = 8
+
+			}
+
+		}
+		graph := createGraphFunc(dim)
+		currentExperiencesSize := fmt.Sprintf("%s_dim%d", title, dim)
+
+		graph.Initalizes()
+		activateAllNodesHandler(graph)
+		graph.YoDown()
+		graph.stats.exportCSV(title,
+			currentExperiencesSize,
+			fmt.Sprintf("./datasheet/%s.csv", title))
+		fmt.Printf(graph.stats.visualizesResult(
+			title,
+			currentExperiencesSize,
+			"\t", "",
+		))
+	}
 }

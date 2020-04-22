@@ -43,6 +43,9 @@ func NewMessageCnter() *MessageCnter {
 func (msgcnt *MessageCnter) UnpackMsgCnter(sep string) string {
 	result := ""
 	for _, msgType := range msgSequence {
+		if sep != "," && msgType == NO {
+			result += "       "
+		}
 		result += fmt.Sprintf("%s%d", sep, msgcnt.count[msgType])
 	}
 	return result
@@ -88,21 +91,31 @@ func (stats *Statisics) parseGraphProperties(g *Graph) {
 	stats.numsEdge = g.numsEdges
 }
 
-func (stats *Statisics) visualizesResult(title string, typesOfTopology string, sep string, filename string) string {
+func (stats *Statisics) visualizesResult(
+	title string,
+	typesOfTopology string,
+	sep string,
+	filename string) string {
+
 	result := ""
 	_, err := os.Stat(filename)
-	if err != nil || filename == "" {
+	if err != nil || filename == "" || sep != "," {
 		fmt.Printf("%s not exists creating one...\n", filename)
 		result += title + fmt.Sprintf("\nDescription%s#YoDown%s#Yes%s#YesPrune%s#No%sDuration%s#numsNode%s#nusmEdges\n",
 			sep, sep, sep, sep, sep, sep, sep)
 	}
 
 	for stages, msgCnter := range stats.yoStages {
-		result += fmt.Sprintf("%sstags%s%d", typesOfTopology, sep, stages) + msgCnter.UnpackMsgCnter(sep) + sep
-		result += fmt.Sprintf("%s,,\n", stats.yoDownTime[stages])
+		result += fmt.Sprintf("%s_%d", typesOfTopology, stages) + msgCnter.UnpackMsgCnter(sep) + sep
+		result += fmt.Sprintf("%s\n", stats.yoDownTime[stages])
 	}
 	result += fmt.Sprintf("%s", typesOfTopology) + stats.totlaMsgCnter.UnpackMsgCnter(sep) + sep
-	result += fmt.Sprintf("%s%s%d%s%d\n", stats.totalDuration, sep, stats.numsNode, sep, stats.numsEdge)
+	result += fmt.Sprintf("%s%s", stats.totalDuration, sep)
+	result += fmt.Sprintf("%d%s", stats.numsNode, sep)
+	if sep != "," {
+		result += "        "
+	}
+	result += fmt.Sprintf("%d\n", stats.numsEdge)
 	return result
 }
 
