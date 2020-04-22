@@ -36,3 +36,10 @@
 2. We can see the message complexity has heavier connection toward edge size. It make sense as the Yoyo complexity is $2m + 2mlog(s)$ in which it appears complete graph has the highest run time and message among all topology. 
 
 
+3. Yoyo Stages tends spends more time on cicylic graph. 
+
+4. HyperCube as the greatest N and M increases thus has highest messages and highest time consuming as well.
+
+## Conclusion 
+
+- Yoyo tends work well on a graph with less numbers of edges, as it doesn't consume additional message to perform YoDown and Pruning messages. 
